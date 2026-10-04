@@ -1,0 +1,23 @@
+{
+  "name": "Sarab Quest",
+  "short_name": "SarabQuest",
+  "description": "Jeu Phygital et Chasse au Trésor Interactive",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#131922",
+  "theme_color": "#00f0ff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/images/logo_games5-.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/logo_games5-.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
