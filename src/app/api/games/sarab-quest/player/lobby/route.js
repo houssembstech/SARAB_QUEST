@@ -4,6 +4,8 @@ import PhygitalTeam from '@/models/PhygitalTeam';
 import PhygitalGame from '@/models/PhygitalGame';
 import crypto from 'crypto';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/games/sarab-quest/player/lobby?gameId=...
  * Returns public info about a game in 'ready' status (lobby info + existing teams count)

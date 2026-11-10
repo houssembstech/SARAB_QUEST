@@ -4,6 +4,8 @@ import PhygitalGame from '@/models/PhygitalGame';
 import User from '@/models/User';
 import { getSession } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
     try {
         await connectDB();

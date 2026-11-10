@@ -4,6 +4,8 @@ import PhygitalTeam from '@/models/PhygitalTeam';
 import PhygitalStage from '@/models/PhygitalStage';
 import PhygitalGame from '@/models/PhygitalGame';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import PhygitalGame from '@/models/PhygitalGame';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/games/sarab-quest/player/open-games
  * Returns public list of games that are open for registration (status='ready') or active

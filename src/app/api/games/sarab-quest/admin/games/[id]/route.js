@@ -5,6 +5,8 @@ import PhygitalStage from '@/models/PhygitalStage';
 import PhygitalTeam from '@/models/PhygitalTeam';
 import { getSession } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 async function checkOwnership(gameId, session) {
     if (session.role === 'admin') return true;
     const game = await PhygitalGame.findById(gameId);
