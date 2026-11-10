@@ -17,8 +17,16 @@ const PhygitalGameSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['draft', 'active', 'completed'],
+        enum: ['draft', 'ready', 'active', 'completed'],
         default: 'draft',
+    },
+    maxTeams: {
+        type: Number,
+        default: 0, // 0 = unlimited
+    },
+    maxMembersPerTeam: {
+        type: Number,
+        default: 10,
     },
     mapTexture: {
         type: String,

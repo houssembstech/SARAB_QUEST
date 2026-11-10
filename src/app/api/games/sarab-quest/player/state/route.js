@@ -30,9 +30,8 @@ export async function GET(request) {
             return NextResponse.json({ success: false, error: 'Jeu non trouvé' }, { status: 404 });
         }
 
-        // Determine if game has started
-        const now = new Date();
-        const hasStarted = game.status === 'active' || (game.startTime && now >= new Date(game.startTime));
+        // Determine if game has started — only 'active' means game is running
+        const hasStarted = game.status === 'active';
 
         if (!hasStarted) {
              return NextResponse.json({
@@ -43,6 +42,7 @@ export async function GET(request) {
                     gameDescription: game.description,
                     mapTexture: game.mapTexture || 'map_general',
                     startTime: game.startTime,
+                    gameStatus: game.status, // 'draft' | 'ready' | 'active'
                     stagesSummary: game.stages.map((st, idx) => ({ id: st._id, title: st.title || `المهمة ${idx + 1}`, validationType: st.validationType })),
                     team: { name: team.teamName, score: team.score }
                 }
@@ -51,8 +51,8 @@ export async function GET(request) {
 
         if (team.completed || team.currentStageIndex >= game.stages.length) {
             const leaderboard = await PhygitalTeam.find({ gameId: game._id })
-                .sort({ score: -1, currentStageIndex: -1 })
-                .select('teamName score currentStageIndex completed')
+                .sort({ completed: -1, completedAt: 1, score: -1, currentStageIndex: -1 })
+                .select('teamName score currentStageIndex completed completedAt')
                 .lean();
                 
             return NextResponse.json({
@@ -95,8 +95,8 @@ export async function GET(request) {
         
         // Fetch leaderboard Data
         const leaderboard = await PhygitalTeam.find({ gameId: game._id })
-            .sort({ score: -1, currentStageIndex: -1 })
-            .select('teamName score currentStageIndex completed')
+            .sort({ completed: -1, completedAt: 1, score: -1, currentStageIndex: -1 })
+            .select('teamName score currentStageIndex completed completedAt')
             .lean();
 
         // -------------------------

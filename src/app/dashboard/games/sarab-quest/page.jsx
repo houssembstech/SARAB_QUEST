@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Activity, Plus, Clock, Target, ArrowRight, Trash2, Edit3 } from 'lucide-react';
+import { Activity, Plus, Clock, Target, ArrowRight, Trash2, Edit3, Users } from 'lucide-react';
 import styles from './admin.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -124,6 +124,14 @@ export default function PhygitalGamesDashboard() {
                 <span style={{ flex: 1, textAlign: language === 'ar' ? 'right' : 'left' }}>{t('sarabQuestConsole')}</span>
 
                 <button
+                    onClick={() => router.push('/dashboard/accounts')}
+                    className={styles.btnSecondary}
+                    style={{ fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', flexDirection: language === 'ar' ? 'row-reverse' : 'row' }}
+                >
+                    <Users size={16} /> Comptes
+                </button>
+
+                <button
                     onClick={() => {
                         setEditingGameId(null);
                         setName(''); setDescription(''); setStartTime(''); setLocation(''); setMapTexture('map_general');
@@ -161,12 +169,14 @@ export default function PhygitalGamesDashboard() {
                             <div style={{ marginBottom: '20px' }}>
                                 <span className={styles.badge} style={{
                                     background: game.status === 'active' ? 'rgba(0, 229, 153, 0.2)' :
-                                        game.status === 'completed' ? 'rgba(255,255,255,0.1)' : 'rgba(255, 153, 0, 0.2)',
+                                        game.status === 'completed' ? 'rgba(255,255,255,0.1)' :
+                                        game.status === 'ready' ? 'rgba(255, 183, 77, 0.2)' : 'rgba(255, 153, 0, 0.2)',
                                     color: game.status === 'active' ? '#00e599' :
-                                        game.status === 'completed' ? '#94a3b8' : '#ff9900',
-                                    border: `1px solid ${game.status === 'active' ? '#00e599' : game.status === 'completed' ? '#94a3b8' : '#ff9900'}`
+                                        game.status === 'completed' ? '#94a3b8' :
+                                        game.status === 'ready' ? '#ffb74d' : '#ff9900',
+                                    border: `1px solid ${game.status === 'active' ? '#00e599' : game.status === 'completed' ? '#94a3b8' : game.status === 'ready' ? '#ffb74d' : '#ff9900'}`
                                 }}>
-                                    {game.status === 'active' ? t('activeStatus') : game.status === 'completed' ? t('completedStatus') : t('draftStatus')}
+                                    {game.status === 'active' ? t('activeStatus') : game.status === 'completed' ? t('completedStatus') : game.status === 'ready' ? '⏳ Inscription ouverte' : t('draftStatus')}
                                 </span>
                             </div>
 

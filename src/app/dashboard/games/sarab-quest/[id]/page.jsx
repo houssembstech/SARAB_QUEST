@@ -14,6 +14,7 @@ export default function PhygitalGameDetails() {
     const [teams, setTeams] = useState([]);
     
     // Form States
+    const [stageTitle, setStageTitle] = useState('');
     const [clueText, setClueText] = useState('');
     const [correctAnswer, setCorrectAnswer] = useState('');
     const [points, setPoints] = useState(100);
@@ -68,6 +69,7 @@ export default function PhygitalGameDetails() {
 
         const bodyPayload = {
             gameId: params.id,
+            title: stageTitle,
             clueText,
             correctAnswer: finalCorrectAnswer,
             basePoints: points,
@@ -99,12 +101,13 @@ export default function PhygitalGameDetails() {
 
     const resetStageForm = () => {
         setEditingStageId(null);
-        setClueText(''); setCorrectAnswer(''); setChoiceCount(3); setChoicesArray(['', '', '']); setCorrectChoiceIndices([0]); setPoints(100); setValidationType('text');
+        setStageTitle(''); setClueText(''); setCorrectAnswer(''); setChoiceCount(3); setChoicesArray(['', '', '']); setCorrectChoiceIndices([0]); setPoints(100); setValidationType('text');
         setPuzzleImage(''); setPuzzleGridSize(3);
     };
 
     const handleEditStageClick = (stage) => {
         setEditingStageId(stage._id);
+        setStageTitle(stage.title || '');
         setClueText(stage.clueText || '');
         setPoints(stage.basePoints || 100);
         setValidationType(stage.validationType || 'text');
@@ -244,14 +247,15 @@ export default function PhygitalGameDetails() {
                     </div>
                 </div>
                 
-                <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
-                    {game.status !== 'ready' && <button onClick={() => handleUpdateStatus('ready')} className={styles.btnSecondary}>{t('setAsReadyBtn')}</button>}
-                    {game.status !== 'active' && <button onClick={() => handleUpdateStatus('active')} className={styles.btnPrimary} style={{background: 'linear-gradient(135deg, rgba(0, 150, 0, 0.8) 0%, rgba(0, 229, 153, 0.6) 100%)', borderColor: '#00e599'}}>{t('startMissionActionBtn')}</button>}
+                <div style={{display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap'}}>
+                    {(game.status === 'draft') && <button onClick={() => handleUpdateStatus('ready')} className={styles.btnSecondary} style={{borderColor: '#ffb74d', color: '#ffb74d'}} title="Ouvre l'inscription aux équipes">⏳ Ouvrir l'inscription</button>}
+                    {(game.status === 'draft' || game.status === 'ready') && <button onClick={() => handleUpdateStatus('active')} className={styles.btnPrimary} style={{background: 'linear-gradient(135deg, rgba(0, 150, 0, 0.8) 0%, rgba(0, 229, 153, 0.6) 100%)', borderColor: '#00e599'}}>{t('startMissionActionBtn')}</button>}
+                    {game.status === 'ready' && <button onClick={() => handleUpdateStatus('draft')} className={styles.btnSecondary} style={{borderColor: '#64748b', color: '#64748b', fontSize: '0.75rem'}} title="Ferme l'inscription">Fermer l'inscription</button>}
                     {game.status === 'active' && <button onClick={() => handleUpdateStatus('completed')} className={styles.btnSecondary} style={{borderColor: '#ef4444', color: '#ef4444'}}>{t('endMissionActionBtn')}</button>}
                     
                     <div style={{marginRight: language === 'ar' ? '15px' : '0', marginLeft: language === 'ar' ? '0' : '15px', color: '#94a3b8', fontSize: '0.8rem', textTransform: 'uppercase'}}>{t('statusLabel')} 
                         <span style={{color: game.status === 'active' ? '#00e599' : '#fff', fontWeight: 'bold', marginLeft: '5px'}}>
-                            {game.status === 'active' ? t('activeStatus') : game.status === 'completed' ? t('completedStatus') : t('draftStatus')}
+                            {game.status === 'active' ? t('activeStatus') : game.status === 'completed' ? t('completedStatus') : game.status === 'ready' ? '⏳ Inscription ouverte' : t('draftStatus')}
                         </span>
                     </div>
                 </div>
@@ -276,6 +280,9 @@ export default function PhygitalGameDetails() {
                             )}
                         </div>
                         
+                        <label style={{display: 'block', color: '#ffb74d', marginBottom: '5px', fontSize: '0.9rem', fontFamily: 'Rajdhani'}}>{'Titre de l\'étape (visible sur la carte)'}</label>
+                        <input className={styles.input} placeholder="Ex: Le coffre secret" value={stageTitle} onChange={e=>setStageTitle(e.target.value)} style={{ textAlign: language === 'ar' ? 'right' : 'left', marginBottom: '10px' }} />
+
                         {validationType !== 'puzzle' && (
                             <>
                                 <label style={{display: 'block', color: '#00f0ff', marginBottom: '5px', fontSize: '0.9rem', fontFamily: 'Rajdhani'}}>{t('clueTextPlaceholder')}</label>
@@ -488,6 +495,7 @@ export default function PhygitalGameDetails() {
                                         <span>{t('clueNumberPrefix')} {idx + 1} | {stage.basePoints} {t('pointsSuffix')}</span>
                                         <span style={{color: '#00f0ff', background: 'rgba(0,240,255,0.1)', padding: '2px 8px', borderRadius: '4px'}}>{typeLabel}</span>
                                     </div>
+                                    {stage.title && <div style={{color: '#ffb74d', fontFamily: 'Orbitron', fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '4px'}}>{stage.title}</div>}
                                     <div style={{color: '#fff', margin: '5px 0'}}>{stage.clueText}</div>
                                     <div style={{fontSize: '0.8rem', color: '#00e599', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap'}}>
                                         <ShieldAlert size={12}/> {t('answerLabel')} {t('encryptedText')}

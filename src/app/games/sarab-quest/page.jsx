@@ -8,6 +8,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import SarabPuzzle from '@/components/SarabPuzzle';
 import SarabTaquin from '@/components/SarabTaquin';
 import SarabQrReader from '@/components/SarabQrReader';
+import { Copy, Users, UserPlus, LogIn } from 'lucide-react';
 
 export default function PhygitalGuestPlayerPage() {
     const { t, language } = useLanguage();
@@ -30,8 +31,22 @@ export default function PhygitalGuestPlayerPage() {
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const mapViewportRef = require('react').useRef(null);
     
+    // PvP Danger QR
+    const [myDangerQr, setMyDangerQr] = useState(null);
+
     // Auth Check
     const [currentUserRole, setCurrentUserRole] = useState(null);
+
+    // Lobby state (self-registration before game starts)
+    const [lobbyMode, setLobbyMode] = useState('select'); // 'select' | 'create' | 'join' | 'codes'
+    const [openGames, setOpenGames] = useState([]);
+    const [selectedGame, setSelectedGame] = useState(null);
+    const [lobbyTeamName, setLobbyTeamName] = useState('');
+    const [lobbyMembersCount, setLobbyMembersCount] = useState(2);
+    const [lobbyMessage, setLobbyMessage] = useState({ text: '', type: '' });
+    const [lobbyLoading, setLobbyLoading] = useState(false);
+    const [registeredTeamData, setRegisteredTeamData] = useState(null); // codes after registration
+    const [copiedCode, setCopiedCode] = useState('');
 
     useEffect(() => {
         const stored = localStorage.getItem('sarabSession');
@@ -43,6 +58,14 @@ export default function PhygitalGuestPlayerPage() {
             fetchGameState(data.teamId, data.accessCode);
         }
         
+        // If no session, fetch open games for the lobby
+        if (!stored) {
+            fetch('/api/games/sarab-quest/player/open-games')
+                .then(r => r.json())
+                .then(d => { if (d.success) setOpenGames(d.data); })
+                .catch(() => {});
+        }
+
         // Check if current browser session belongs to an admin
         fetch('/api/auth/me')
             .then(res => res.json())
@@ -53,6 +76,18 @@ export default function PhygitalGuestPlayerPage() {
             })
             .catch(err => console.log('Not an admin / not logged in'));
     }, []);
+
+    // Auto-polling: sync game state every 8s so all team members see stage changes in real-time
+    useEffect(() => {
+        if (!teamSession) return;
+        if (gameState === 'completed') return;
+
+        const interval = setInterval(() => {
+            fetchGameState(teamSession.teamId);
+        }, 8000);
+
+        return () => clearInterval(interval);
+    }, [teamSession, gameState]);
 
     const fetchGameState = async (teamId, codeOverride = '') => {
         try {
@@ -378,6 +413,54 @@ export default function PhygitalGuestPlayerPage() {
         }
     };
 
+    const handleCopyCode = (code) => {
+        navigator.clipboard.writeText(code).then(() => {
+            setCopiedCode(code);
+            setTimeout(() => setCopiedCode(''), 2000);
+        });
+    };
+
+    const handleSelectGame = async (game) => {
+        setSelectedGame(game);
+        // Fetch fresh lobby info for this game
+        try {
+            const res = await fetch(`/api/games/sarab-quest/player/lobby?gameId=${game._id}`);
+            const data = await res.json();
+            if (data.success) setSelectedGame(data.data);
+        } catch (e) {}
+        setLobbyMode(game.status === 'ready' ? 'create' : 'join');
+    };
+
+    const handleCreateTeam = async (e) => {
+        e.preventDefault();
+        if (!selectedGame) return;
+        setLobbyLoading(true);
+        setLobbyMessage({ text: '', type: '' });
+        try {
+            const res = await fetch('/api/games/sarab-quest/player/lobby', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    gameId: selectedGame.gameId || selectedGame._id,
+                    teamName: lobbyTeamName,
+                    membersCount: lobbyMembersCount
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setRegisteredTeamData(data.data);
+                setLobbyMode('codes');
+                setLobbyMessage({ text: '', type: '' });
+            } else {
+                setLobbyMessage({ text: data.error, type: 'error' });
+            }
+        } catch (e) {
+            setLobbyMessage({ text: 'Erreur serveur', type: 'error' });
+        } finally {
+            setLobbyLoading(false);
+        }
+    };
+
     const handleLogout = () => {
         localStorage.removeItem('sarabSession');
         setTeamSession(null);
@@ -385,65 +468,271 @@ export default function PhygitalGuestPlayerPage() {
     };
 
     if (!teamSession) {
-        return (
-            <div className={styles.container} style={{ position: 'relative', direction: language === 'ar' ? 'rtl' : 'ltr' }}>
-                <Link href="/menu" style={{ position: 'absolute', top: '20px', left: language === 'ar' ? '20px' : 'auto', right: language === 'ar' ? 'auto' : '20px', color: '#a67c52', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 10, fontFamily: 'Rajdhani', fontWeight: 'bold' }}>
-                    <ArrowRight size={24} style={{ transform: language === 'ar' ? 'rotate(180deg)' : 'none' }} />
-                    <span style={{ fontSize: '1.2rem' }}>{t('back')}</span>
-                </Link>
+        // ── LOBBY: codes screen after team registration ──────────────────────
+        if (lobbyMode === 'codes' && registeredTeamData) {
+            return (
+                <div className={styles.container} style={{ direction: language === 'ar' ? 'rtl' : 'ltr' }}>
+                    <div className={styles.lobbyContainer}>
+                        <div className={styles.lobbyHeader}>
+                            <div className={styles.lobbyTitle}>🎉 Équipe Créée !</div>
+                            <div className={styles.lobbyGameName}>{registeredTeamData.gameName}</div>
+                        </div>
 
-                <div className={styles.loginContainer}>
-                    <div className={styles.loginCard}>
-                        <Image src="/images/logo_games5-.png" alt="Sarab Quest Logo" width={200} height={100} style={{ objectFit: 'contain', margin: '0 auto', display: 'block', filter: 'drop-shadow(0 0 10px rgba(0, 240, 255, 0.5))', width: 'auto', height: 'auto' }} priority />
-                        <h1 className={styles.loginTitle} style={{ marginTop: '10px' }}>SARAB QUEST</h1>
-                        <h2 className={styles.loginSubtitle}>{t('sarabQuestSubtitle')}</h2>
+                        <div className={styles.lobbyCard} style={{ maxWidth: '460px', width: '100%' }}>
+                            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                                <div style={{ fontFamily: 'Orbitron', fontSize: '1.1rem', color: '#fff', marginBottom: '4px' }}>
+                                    {registeredTeamData.teamName}
+                                </div>
+                                <div style={{ fontSize: '0.85rem', color: '#94a3b8', fontFamily: 'Rajdhani' }}>
+                                    Distribuez les codes ci-dessous à chaque membre de votre équipe
+                                </div>
+                            </div>
 
-                        <form onSubmit={handleLogin}>
-                            <input
-                                type="text"
-                                className={styles.codeInput}
-                                placeholder={t('accessCode')}
-                                value={accessCode}
-                                onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
-                                maxLength={6}
-                                disabled={isChecking}
-                                style={{ direction: language === 'ar' ? 'rtl' : 'ltr', textAlign: 'center' }}
-                            />
+                            <div className={styles.codesDisplay}>
+                                <div className={styles.codesTitle}>Codes membres</div>
+                                {registeredTeamData.accessCodes.map((code, idx) => (
+                                    <div key={idx} className={styles.codeRow}>
+                                        <span className={styles.codeMemberLabel}>Joueur {idx + 1}</span>
+                                        <span className={styles.codeBadge}>{code}</span>
+                                        <button
+                                            className={styles.codeCopyBtn}
+                                            onClick={() => handleCopyCode(code)}
+                                        >
+                                            <Copy size={14} />
+                                            {copiedCode === code ? '✓' : 'Copier'}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
 
-                            {message.text && (
-                                <p className={`${styles.messageStatus} ${message.type === 'error' ? styles.messageError : styles.messageSuccess}`}>
-                                    {message.text}
-                                </p>
-                            )}
+                            <div style={{ marginTop: '20px', padding: '12px', background: 'rgba(255,183,77,0.08)', border: '1px solid rgba(255,183,77,0.3)', borderRadius: '8px', fontSize: '0.85rem', color: '#ffb74d', fontFamily: 'Rajdhani', textAlign: 'center', lineHeight: 1.5 }}>
+                                ⏳ La mission démarrera quand l'organisateur le lancera.<br />
+                                Chaque membre entre son code dans SARAB QUEST pour rejoindre.
+                            </div>
 
-                            <button type="submit" className={styles.joinBtn} disabled={isChecking}>
-                                {isChecking ? t('syncingBtn') : t('startMissionBtn')}
-                            </button>
-                        </form>
+                            <div style={{ marginTop: '16px' }}>
+                                <button className={styles.lobbyBtnSecondary} onClick={() => {
+                                    setLobbyMode('join');
+                                    setRegisteredTeamData(null);
+                                }}>
+                                    Rejoindre avec mon code →
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
 
-                        {(currentUserRole === 'admin' || currentUserRole === 'director') && (
-                            <div style={{ marginTop: '25px', paddingTop: '15px', borderTop: '1px solid rgba(166, 124, 82, 0.3)' }}>
-                                <Link href="/dashboard/games/sarab-quest" style={{textDecoration: 'none'}}>
-                                    <button style={{
-                                        width: '100%',
-                                        background: 'transparent',
-                                        border: '1px solid #a67c52',
-                                        color: '#a67c52',
-                                        padding: '10px',
-                                        borderRadius: '4px',
-                                        fontFamily: 'Orbitron',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.3s'
-                                    }}
-                                    onMouseOver={(e) => { e.target.style.background = 'rgba(166, 124, 82, 0.1)'; e.target.style.color = '#ff9900'; }}
-                                    onMouseOut={(e) => { e.target.style.background = 'transparent'; e.target.style.color = '#a67c52'; }}
-                                    >
-                                        ⚙️ {t('adminDashboardBtn')}
-                                    </button>
-                                </Link>
+        // ── LOBBY: team creation form ────────────────────────────────────────
+        if (lobbyMode === 'create' && selectedGame) {
+            return (
+                <div className={styles.container} style={{ direction: language === 'ar' ? 'rtl' : 'ltr' }}>
+                    <div className={styles.lobbyContainer}>
+                        <div className={styles.lobbyHeader}>
+                            <div className={styles.lobbyTitle}>SARAB QUEST</div>
+                            <div className={styles.lobbyGameName}>{selectedGame.gameName || selectedGame.name}</div>
+                            <div style={{ marginTop: '8px' }}>
+                                <span className={`${styles.lobbyStatusBadge} ${styles.ready}`}>
+                                    ● Inscription ouverte
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Existing teams */}
+                        {selectedGame.teams && selectedGame.teams.length > 0 && (
+                            <div className={styles.lobbyCard} style={{ maxWidth: '460px', width: '100%' }}>
+                                <div style={{ color: '#a67c52', fontFamily: 'Orbitron', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>
+                                    <Users size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                                    Équipes inscrites ({selectedGame.teamsCount || selectedGame.teams.length})
+                                </div>
+                                <div className={styles.lobbyTeamList}>
+                                    {selectedGame.teams.map((t, i) => (
+                                        <div key={i} className={styles.lobbyTeamItem}>
+                                            <span style={{ fontFamily: 'Rajdhani', fontWeight: '700', color: '#fff' }}>{t.teamName}</span>
+                                            <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{t.membersCount} membres</span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
+
+                        {/* Registration form */}
+                        <div className={styles.lobbyCard} style={{ maxWidth: '460px', width: '100%' }}>
+                            <div style={{ fontFamily: 'Orbitron', fontSize: '0.9rem', color: '#00e5ff', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <UserPlus size={18} /> Créer votre équipe
+                            </div>
+                            <form onSubmit={handleCreateTeam}>
+                                <label style={{ display: 'block', color: '#a67c52', fontSize: '0.8rem', fontFamily: 'Orbitron', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>
+                                    Nom de l'équipe
+                                </label>
+                                <input
+                                    className={styles.lobbyInput}
+                                    placeholder="Ex: Les Explorateurs"
+                                    value={lobbyTeamName}
+                                    onChange={e => setLobbyTeamName(e.target.value)}
+                                    required
+                                    minLength={2}
+                                    maxLength={30}
+                                    disabled={lobbyLoading}
+                                />
+                                <label style={{ display: 'block', color: '#a67c52', fontSize: '0.8rem', fontFamily: 'Orbitron', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>
+                                    Nombre de membres
+                                </label>
+                                <input
+                                    type="number"
+                                    className={styles.lobbyInput}
+                                    min={1}
+                                    max={selectedGame.maxMembersPerTeam || 10}
+                                    value={lobbyMembersCount}
+                                    onChange={e => setLobbyMembersCount(parseInt(e.target.value) || 1)}
+                                    required
+                                    disabled={lobbyLoading}
+                                />
+                                {lobbyMessage.text && (
+                                    <div className={`${styles.lobbyMessage} ${styles[lobbyMessage.type]}`} style={{ marginBottom: '14px' }}>
+                                        {lobbyMessage.text}
+                                    </div>
+                                )}
+                                <button type="submit" className={styles.lobbyBtn} disabled={lobbyLoading}>
+                                    {lobbyLoading ? 'Création...' : '⚔️ Créer & Recevoir les Codes'}
+                                </button>
+                            </form>
+
+                            <div className={styles.lobbyDivider}>déjà inscrit ?</div>
+                            <button className={styles.lobbyBtnSecondary} onClick={() => setLobbyMode('join')}>
+                                <LogIn size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                                Rejoindre avec un code
+                            </button>
+                            <button onClick={() => { setLobbyMode('select'); setSelectedGame(null); }}
+                                style={{ width: '100%', background: 'transparent', border: 'none', color: '#475569', cursor: 'pointer', marginTop: '10px', fontFamily: 'Rajdhani', fontSize: '0.9rem' }}>
+                                ← Retour
+                            </button>
+                        </div>
                     </div>
+                </div>
+            );
+        }
+
+        // ── LOGIN: enter access code (after having received codes or for active games) ──
+        if (lobbyMode === 'join') {
+            return (
+                <div className={styles.container} style={{ direction: language === 'ar' ? 'rtl' : 'ltr' }}>
+                    <div className={styles.loginContainer}>
+                        <div className={styles.loginCard}>
+                            <Image src="/images/logo_games5-.png" alt="Sarab Quest Logo" width={200} height={100} style={{ objectFit: 'contain', margin: '0 auto', display: 'block', filter: 'drop-shadow(0 0 10px rgba(0, 240, 255, 0.5))', width: 'auto', height: 'auto' }} priority />
+                            <h1 className={styles.loginTitle} style={{ marginTop: '10px' }}>SARAB QUEST</h1>
+                            <h2 className={styles.loginSubtitle}>{t('sarabQuestSubtitle')}</h2>
+
+                            <form onSubmit={handleLogin}>
+                                <input
+                                    type="text"
+                                    className={styles.codeInput}
+                                    placeholder={t('accessCode')}
+                                    value={accessCode}
+                                    onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+                                    maxLength={6}
+                                    disabled={isChecking}
+                                    style={{ direction: 'ltr', textAlign: 'center' }}
+                                />
+                                {message.text && (
+                                    <p className={`${styles.messageStatus} ${message.type === 'error' ? styles.messageError : styles.messageSuccess}`}>
+                                        {message.text}
+                                    </p>
+                                )}
+                                <button type="submit" className={styles.joinBtn} disabled={isChecking}>
+                                    {isChecking ? t('syncingBtn') : t('startMissionBtn')}
+                                </button>
+                            </form>
+
+                            <button onClick={() => setLobbyMode('select')}
+                                style={{ width: '100%', background: 'transparent', border: 'none', color: '#475569', cursor: 'pointer', marginTop: '14px', fontFamily: 'Rajdhani', fontSize: '0.9rem' }}>
+                                ← Retour
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ── DEFAULT: select a game or enter code directly ────────────────────
+        return (
+            <div className={styles.container} style={{ direction: language === 'ar' ? 'rtl' : 'ltr' }}>
+                <div className={styles.lobbyContainer}>
+                    <div className={styles.lobbyHeader}>
+                        <Image src="/images/logo_games5-.png" alt="Sarab Quest Logo" width={180} height={90} style={{ objectFit: 'contain', margin: '0 auto', display: 'block', filter: 'drop-shadow(0 0 10px rgba(0, 240, 255, 0.5))', width: 'auto', height: 'auto', marginBottom: '12px' }} priority />
+                        <div className={styles.lobbyTitle}>SARAB QUEST</div>
+                        <div style={{ color: '#94a3b8', fontFamily: 'Rajdhani', fontSize: '1rem', marginTop: '6px' }}>
+                            Choisissez votre mission
+                        </div>
+                    </div>
+
+                    {/* Open missions list */}
+                    {openGames.length > 0 ? (
+                        <div style={{ width: '100%', maxWidth: '460px' }}>
+                            <div style={{ color: '#a67c52', fontFamily: 'Orbitron', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px', textAlign: 'center' }}>
+                                Missions disponibles
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                {openGames.map(game => (
+                                    <button
+                                        key={game._id}
+                                        onClick={() => handleSelectGame(game)}
+                                        style={{
+                                            width: '100%',
+                                            background: 'linear-gradient(135deg, #1b2431 0%, #11161d 100%)',
+                                            border: `2px solid ${game.status === 'ready' ? 'rgba(255,183,77,0.4)' : 'rgba(0,229,153,0.4)'}`,
+                                            borderRadius: '10px',
+                                            padding: '18px 20px',
+                                            cursor: 'pointer',
+                                            textAlign: 'left',
+                                            transition: 'all 0.2s',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            boxShadow: '0 5px 15px rgba(0,0,0,0.5)'
+                                        }}
+                                    >
+                                        <div>
+                                            <div style={{ fontFamily: 'Rajdhani', fontWeight: '700', fontSize: '1.2rem', color: '#fff', marginBottom: '4px' }}>{game.name}</div>
+                                            {game.description && <div style={{ fontSize: '0.8rem', color: '#64748b', fontFamily: 'Rajdhani' }}>{game.description.substring(0, 60)}{game.description.length > 60 ? '...' : ''}</div>}
+                                        </div>
+                                        <div>
+                                            <span className={`${styles.lobbyStatusBadge} ${game.status === 'ready' ? styles.ready : styles.active}`}>
+                                                {game.status === 'ready' ? '⏳ Inscription' : '🟢 En cours'}
+                                            </span>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className={styles.lobbyCard} style={{ maxWidth: '460px', width: '100%', textAlign: 'center' }}>
+                            <div style={{ color: '#475569', fontFamily: 'Rajdhani', fontSize: '1rem', padding: '20px 0' }}>
+                                Aucune mission ouverte pour le moment.
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Direct code entry */}
+                    <div style={{ width: '100%', maxWidth: '460px' }}>
+                        <div className={styles.lobbyDivider}>ou rejoindre directement</div>
+                        <button className={styles.lobbyBtnSecondary} onClick={() => setLobbyMode('join')}>
+                            <LogIn size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                            J'ai déjà un code d'accès
+                        </button>
+                    </div>
+
+                    {(currentUserRole === 'admin' || currentUserRole === 'director') && (
+                        <div style={{ width: '100%', maxWidth: '460px' }}>
+                            <div className={styles.lobbyDivider}>admin</div>
+                            <Link href="/dashboard/games/sarab-quest" style={{ textDecoration: 'none', display: 'block' }}>
+                                <button style={{ width: '100%', background: 'transparent', border: '1px solid #a67c52', color: '#a67c52', padding: '12px', borderRadius: '6px', fontFamily: 'Orbitron', cursor: 'pointer', fontSize: '0.85rem' }}>
+                                    ⚙️ {t('adminDashboardBtn')}
+                                </button>
+                            </Link>
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -537,8 +826,19 @@ export default function PhygitalGuestPlayerPage() {
                     {gameState === 'waiting' && (
                         <div style={{ textAlign: 'center', marginTop: '40px' }}>
                             <AlertCircle size={60} color="#ff9900" style={{ margin: '0 auto 20px' }} />
-                            <h2 style={{ fontFamily: 'Rajdhani', fontSize: '2rem', color: '#ff9900', marginBottom: '15px' }}>{t('waitingMode') || 'MODE ATTENTE'}</h2>
-                            <p style={{ color: '#e2e8f0', marginBottom: '30px', fontSize: '1.2rem' }}>{t('waitingText') || 'En attente du départ...'}</p>
+                            <h2 style={{ fontFamily: 'Rajdhani', fontSize: '2rem', color: '#ff9900', marginBottom: '15px' }}>
+                                {gameStateData?.gameStatus === 'ready' ? '⏳ EN ATTENTE DU LANCEMENT' : (t('waitingMode') || 'MODE ATTENTE')}
+                            </h2>
+                            <p style={{ color: '#e2e8f0', marginBottom: '10px', fontSize: '1.2rem' }}>
+                                {gameStateData?.gameStatus === 'ready'
+                                    ? `Équipe : ${gameStateData?.team?.name}`
+                                    : (t('waitingText') || 'En attente du départ...')}
+                            </p>
+                            {gameStateData?.gameStatus === 'ready' && (
+                                <p style={{ color: '#94a3b8', marginBottom: '30px', fontSize: '1rem', fontFamily: 'Rajdhani' }}>
+                                    Toutes les équipes sont en attente. La mission démarrera quand l'organisateur la lancera.
+                                </p>
+                            )}
                             <button onClick={() => fetchGameState(teamSession.teamId)} className={styles.submitBtn} style={{ padding: '15px 30px' }}>
                                 {t('refreshConnection') || 'Rafraîchir'}
                             </button>

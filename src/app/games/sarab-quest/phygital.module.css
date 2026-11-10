@@ -612,3 +612,285 @@
   animation: blink 1s step-end infinite;
 }
 @keyframes blink { 50% { opacity: 0; } }
+
+/* ========== LOBBY / SELF-REGISTRATION SCREEN ========== */
+.lobbyContainer {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 30px 20px 60px;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.lobbyHeader {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.lobbyTitle {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 2rem;
+  color: #ffb74d;
+  text-shadow: 0 0 20px rgba(255, 183, 77, 0.5);
+  margin-bottom: 6px;
+}
+
+.lobbyGameName {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.1rem;
+  color: #00e5ff;
+  letter-spacing: 2px;
+}
+
+.lobbyCard {
+  box-sizing: border-box;
+  background: linear-gradient(135deg, #1b2431 0%, #11161d 100%);
+  border: 2px solid rgba(166, 124, 82, 0.5);
+  border-radius: 10px;
+  padding: 24px 22px;
+  width: 100%;
+  max-width: 460px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,0.6);
+  position: relative;
+}
+
+.lobbyCard::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, #6c4b31, #b5835a, #6c4b31);
+  border-radius: 10px 10px 0 0;
+}
+
+.lobbyInput {
+  box-sizing: border-box;
+  width: 100%;
+  background: #090c10;
+  border: 1px solid #334354;
+  border-radius: 6px;
+  padding: 14px 16px;
+  font-size: 1.1rem;
+  color: #e2e8f0;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  outline: none;
+  margin-bottom: 14px;
+  transition: border-color 0.2s;
+}
+
+.lobbyInput:focus {
+  border-color: #00e5ff;
+  box-shadow: 0 0 8px rgba(0,229,255,0.2);
+}
+
+.lobbyBtn {
+  width: 100%;
+  background: linear-gradient(180deg, #c49060 0%, #8c5830 50%, #4a2c15 100%);
+  border: 2px solid #ffcc99;
+  color: #fff;
+  padding: 16px;
+  font-size: 1.1rem;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  border-radius: 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.2);
+  transition: transform 0.1s, opacity 0.2s;
+}
+
+.lobbyBtn:active { transform: scale(0.98); }
+.lobbyBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.lobbyBtnSecondary {
+  width: 100%;
+  background: transparent;
+  border: 1px solid rgba(0,229,255,0.4);
+  color: #00e5ff;
+  padding: 12px;
+  font-size: 0.95rem;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.lobbyBtnSecondary:hover { background: rgba(0,229,255,0.08); }
+
+.codesDisplay {
+  background: #090c10;
+  border: 1px solid rgba(0,229,255,0.3);
+  border-radius: 8px;
+  padding: 18px;
+  margin-top: 16px;
+}
+
+.codesTitle {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.85rem;
+  color: #00e5ff;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.codeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.codeBadge {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #ffb74d;
+  letter-spacing: 4px;
+  background: rgba(255,183,77,0.1);
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,183,77,0.3);
+}
+
+.codeMemberLabel {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.9rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.codeCopyBtn {
+  background: transparent;
+  border: none;
+  color: #00e5ff;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.8rem;
+  transition: background 0.2s;
+}
+.codeCopyBtn:hover { background: rgba(0,229,255,0.1); }
+
+.lobbyTeamList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.lobbyTeamItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+
+.lobbyStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.lobbyStatusBadge.ready {
+  background: rgba(255, 183, 77, 0.15);
+  border: 1px solid rgba(255, 183, 77, 0.4);
+  color: #ffb74d;
+}
+
+.lobbyStatusBadge.active {
+  background: rgba(0, 229, 153, 0.15);
+  border: 1px solid rgba(0, 229, 153, 0.4);
+  color: #00e599;
+}
+
+.lobbyDivider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  color: #475569;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+.lobbyDivider::before, .lobbyDivider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.lobbyMessage {
+  padding: 12px;
+  border-radius: 6px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1rem;
+  text-align: center;
+  font-weight: 700;
+}
+.lobbyMessage.success {
+  background: rgba(0, 229, 153, 0.1);
+  border: 1px solid rgba(0, 229, 153, 0.3);
+  color: #00e599;
+}
+.lobbyMessage.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.loginContainer {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.messageStatus {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1rem;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+.messageError {
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.1);
+}
+.messageSuccess {
+  color: #00e599;
+  border: 1px solid rgba(0, 229, 153, 0.3);
+  background: rgba(0, 229, 153, 0.1);
+}
+
