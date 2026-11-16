@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import {
   Users, ShieldCheck, Clock, Trash2, CheckCircle2, XCircle,
   ArrowRight, Shield, UserCog, UserPlus, Edit3, Lock, Ban,
-  Eye, EyeOff, AlertCircle, CheckCircle, X, KeyRound
+  Eye, EyeOff, AlertCircle, CheckCircle, X, KeyRound, LogOut
 } from 'lucide-react';
 
 // ── Modal générique ──────────────────────────────────────────────────────────
@@ -105,6 +105,7 @@ export default function AccountsManagement() {
 
   // Edit form
   const [editName, setEditName] = useState('');
+  const [editRole, setEditRole] = useState('creator');
   const [editPassword, setEditPassword] = useState('');
   const [showEditPwd, setShowEditPwd] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
@@ -131,6 +132,16 @@ export default function AccountsManagement() {
       if (!data.authenticated || data.role !== 'admin') { router.push('/auth/login'); return; }
       setCurrentUser(data);
     } catch { router.push('/auth/login'); }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      router.push('/auth/login');
+    }
   };
 
   const fetchUsers = async () => {
@@ -169,11 +180,23 @@ export default function AccountsManagement() {
     else showToast(d.error, 'error');
   };
 
-  const handlePromoteAdmin = async (userId) => {
-    if (!confirm('Promouvoir cet utilisateur en administrateur ?')) return;
-    const d = await apiPut({ userId, role: 'admin', isApproved: true });
-    if (d.success) { showToast('Promu administrateur ✓'); fetchUsers(); }
-    else showToast(d.error, 'error');
+  const handleRoleChange = async (userId, newRole) => {
+    if (currentUser && userId === currentUser.userId) {
+      showToast('Vous ne pouvez pas modifier votre propre rôle', 'error');
+      return;
+    }
+    const targetUser = users.find(u => u._id === userId);
+    const body = { userId, role: newRole };
+    if ((newRole === 'admin' || newRole === 'director') && targetUser && !targetUser.isApproved) {
+      body.isApproved = true;
+    }
+    const d = await apiPut(body);
+    if (d.success) {
+      showToast(`Rôle mis à jour vers "${newRole}" ✓`);
+      fetchUsers();
+    } else {
+      showToast(d.error || 'Erreur lors du changement de rôle', 'error');
+    }
   };
 
   const handleDelete = async (userId) => {
@@ -188,6 +211,7 @@ export default function AccountsManagement() {
   const openEdit = (user) => {
     setEditModal(user);
     setEditName(user.name);
+    setEditRole(user.role || 'creator');
     setEditPassword('');
     setShowEditPwd(false);
   };
@@ -195,7 +219,7 @@ export default function AccountsManagement() {
   const handleEditSave = async () => {
     if (!editName.trim()) { showToast('Le nom ne peut pas être vide', 'error'); return; }
     setEditLoading(true);
-    const body = { userId: editModal._id, name: editName };
+    const body = { userId: editModal._id, name: editName, role: editRole };
     if (editPassword) body.password = editPassword;
     const d = await apiPut(body);
     setEditLoading(false);
@@ -230,7 +254,7 @@ export default function AccountsManagement() {
     : filter === 'pending' ? pending
     : filter === 'blocked' ? blocked
     : filter === 'creators' ? users.filter(u => u.role === 'creator')
-    : users.filter(u => u.role === 'admin');
+    : users.filter(u => u.role === 'admin' || u.role === 'director');
 
   // ── Styles ───────────────────────────────────────────────────────────────
   const S = {
@@ -274,10 +298,38 @@ export default function AccountsManagement() {
         </div>
       )}
 
-      {/* Back button */}
-      <button onClick={() => router.push('/dashboard/games/sarab-quest')} style={S.backBtn}>
-        <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} /> Dashboard Admin
-      </button>
+      {/* Top Bar with Back and Logout */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px', flexWrap: 'wrap', gap: '10px' }}>
+        <button onClick={() => router.push('/dashboard/games/sarab-quest')} style={{ ...S.backBtn, marginBottom: 0 }}>
+          <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} /> Dashboard Admin
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          {currentUser && (
+            <span style={{ color: '#94a3b8', fontFamily: "'Rajdhani', sans-serif", fontSize: '0.9rem' }}>
+              👤 {currentUser.name} <span style={{ color: '#00f0ff', fontSize: '0.8rem', textTransform: 'uppercase' }}>({currentUser.role})</span>
+            </span>
+          )}
+          <button
+            onClick={handleLogout}
+            style={{
+              background: 'transparent',
+              color: '#ef4444',
+              border: '1px solid #ef4444',
+              padding: '8px 14px',
+              fontFamily: "'Orbitron', sans-serif",
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '0.8rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              letterSpacing: '0.5px'
+            }}
+          >
+            <LogOut size={14} /> Déconnexion
+          </button>
+        </div>
+      </div>
 
       {/* Header */}
       <div style={S.header}>
@@ -293,7 +345,7 @@ export default function AccountsManagement() {
           { label: 'Total', val: users.length, color: '#00f0ff' },
           { label: 'En attente', val: pending.length, color: '#ffb74d' },
           { label: 'Créateurs', val: users.filter(u => u.role === 'creator' && u.isApproved && !u.isBlocked).length, color: '#00e599' },
-          { label: 'Admins', val: users.filter(u => u.role === 'admin').length, color: '#00f0ff' },
+          { label: 'Admins / Dir.', val: users.filter(u => u.role === 'admin' || u.role === 'director').length, color: '#00f0ff' },
           { label: 'Bloqués', val: blocked.length, color: '#ef4444' },
         ].map(s => (
           <div key={s.label} style={S.statCard(s.color)}>
@@ -309,7 +361,7 @@ export default function AccountsManagement() {
           { key: 'all', label: `Tous (${users.length})` },
           { key: 'pending', label: `En attente (${pending.length})` },
           { key: 'creators', label: `Créateurs (${users.filter(u => u.role === 'creator').length})` },
-          { key: 'admins', label: `Admins (${users.filter(u => u.role === 'admin').length})` },
+          { key: 'admins', label: `Admins & Dir. (${users.filter(u => u.role === 'admin' || u.role === 'director').length})` },
           { key: 'blocked', label: `Bloqués (${blocked.length})` },
         ].map(f => (
           <button key={f.key} style={S.filterBtn(filter === f.key)} onClick={() => setFilter(f.key)}>{f.label}</button>
@@ -333,7 +385,33 @@ export default function AccountsManagement() {
               <div style={{ flex: 1, minWidth: '200px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '3px' }}>
                   <span style={{ fontWeight: 700, fontSize: '1.05rem', color: user.isBlocked ? '#ef4444' : '#fff' }}>{user.name}</span>
-                  <span style={S.badge(user.role)}>{user.role}</span>
+                  
+                  {/* Sélecteur de rôle interactif */}
+                  <select
+                    value={user.role}
+                    disabled={currentUser && user._id === currentUser.userId}
+                    onChange={(e) => handleRoleChange(user._id, e.target.value)}
+                    title={currentUser && user._id === currentUser.userId ? 'Vous ne pouvez pas modifier votre propre rôle' : 'Modifier le rôle'}
+                    style={{
+                      background: user.role === 'admin' ? 'rgba(0,240,255,0.15)' : user.role === 'director' ? 'rgba(255,183,77,0.15)' : 'rgba(0,229,153,0.15)',
+                      color: user.role === 'admin' ? '#00f0ff' : user.role === 'director' ? '#ffb74d' : '#00e599',
+                      border: `1px solid ${user.role === 'admin' ? 'rgba(0,240,255,0.4)' : user.role === 'director' ? 'rgba(255,183,77,0.4)' : 'rgba(0,229,153,0.4)'}`,
+                      borderRadius: '20px',
+                      padding: '3px 10px',
+                      fontSize: '0.72rem',
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase',
+                      fontFamily: "'Orbitron', sans-serif",
+                      letterSpacing: '0.3px',
+                      cursor: currentUser && user._id === currentUser.userId ? 'not-allowed' : 'pointer',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="creator" style={{ background: '#11161d', color: '#00e599' }}>Créateur</option>
+                    <option value="admin" style={{ background: '#11161d', color: '#00f0ff' }}>Admin</option>
+                    <option value="director" style={{ background: '#11161d', color: '#ffb74d' }}>Directeur</option>
+                  </select>
+
                   {user.role !== 'admin' && (
                     <span style={S.statusBadge(user.isApproved, user.isBlocked)}>
                       {user.isBlocked ? '🚫 Bloqué' : user.isApproved ? '✓ Approuvé' : '⏳ En attente'}
@@ -365,13 +443,6 @@ export default function AccountsManagement() {
                   </ActionBtn>
                 )}
 
-                {/* Promouvoir admin */}
-                {user.role === 'creator' && (
-                  <ActionBtn color="#a78bfa" onClick={() => handlePromoteAdmin(user._id)}>
-                    <Shield size={13} /> Admin
-                  </ActionBtn>
-                )}
-
                 {/* Bloquer / Débloquer */}
                 {currentUser && user._id !== currentUser.userId && (
                   <ActionBtn color={user.isBlocked ? '#00e599' : '#f97316'} onClick={() => handleBlock(user._id, user.isBlocked)}>
@@ -399,6 +470,31 @@ export default function AccountsManagement() {
             onChange={e => setEditName(e.target.value)}
             placeholder="Nom complet" icon={UserCog}
           />
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', color: '#a67c52', fontFamily: "'Orbitron', sans-serif", fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>
+              Rôle du compte
+            </label>
+            <select
+              value={editRole}
+              onChange={e => setEditRole(e.target.value)}
+              disabled={currentUser && editModal._id === currentUser.userId}
+              style={{
+                ...S.selectStyle,
+                marginBottom: '4px',
+                cursor: currentUser && editModal._id === currentUser.userId ? 'not-allowed' : 'pointer',
+                opacity: currentUser && editModal._id === currentUser.userId ? 0.6 : 1
+              }}
+            >
+              <option value="creator">Créateur (Organisateur)</option>
+              <option value="admin">Administrateur</option>
+              <option value="director">Directeur</option>
+            </select>
+            {currentUser && editModal._id === currentUser.userId && (
+              <span style={{ fontSize: '0.75rem', color: '#f59e0b', marginTop: '2px', display: 'block' }}>
+                ⚠️ Vous ne pouvez pas modifier votre propre rôle d'administrateur
+              </span>
+            )}
+          </div>
           <Field
             label="Nouveau mot de passe (laisser vide = inchangé)"
             type={showEditPwd ? 'text' : 'password'}

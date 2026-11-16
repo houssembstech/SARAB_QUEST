@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Activity, Plus, Clock, Target, ArrowRight, Trash2, Edit3, Users } from 'lucide-react';
+import { Activity, Plus, Clock, Target, ArrowRight, Trash2, Edit3, Users, LogOut } from 'lucide-react';
 import styles from './admin.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -11,6 +11,7 @@ export default function PhygitalGamesDashboard() {
     const router = useRouter();
     const [games, setGames] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [currentUser, setCurrentUser] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [editingGameId, setEditingGameId] = useState(null);
 
@@ -26,8 +27,33 @@ export default function PhygitalGamesDashboard() {
     const [eliminationRescuesReq, setEliminationRescuesReq] = useState(2);
 
     useEffect(() => {
+        checkAuth();
         fetchGames();
     }, []);
+
+    const checkAuth = async () => {
+        try {
+            const res = await fetch('/api/auth/me');
+            const data = await res.json();
+            if (!data.authenticated || (data.role !== 'admin' && data.role !== 'director')) {
+                router.push('/auth/login');
+                return;
+            }
+            setCurrentUser(data);
+        } catch {
+            router.push('/auth/login');
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/auth/logout', { method: 'POST' });
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            router.push('/auth/login');
+        }
+    };
 
     const fetchGames = async () => {
         try {
@@ -114,11 +140,27 @@ export default function PhygitalGamesDashboard() {
 
     return (
         <div className={styles.adminContainer} style={{ direction: language === 'ar' ? 'rtl' : 'ltr' }}>
-            <button onClick={() => router.back()} className={styles.btnSecondary} style={{marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '5px', width: 'fit-content'}}>
-                {language !== 'ar' && <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} />}
-                {t('mainDashboardBtn')}
-                {language === 'ar' && <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} />}
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                <button onClick={() => router.push('/menu')} className={styles.btnSecondary} style={{ display: 'flex', alignItems: 'center', gap: '5px', width: 'fit-content' }}>
+                    {language !== 'ar' && <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} />}
+                    Menu Principal
+                    {language === 'ar' && <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} />}
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    {currentUser && (
+                        <span style={{ color: '#94a3b8', fontFamily: "'Rajdhani', sans-serif", fontSize: '0.9rem' }}>
+                            👤 {currentUser.name} <span style={{ color: '#00f0ff', fontSize: '0.8rem', textTransform: 'uppercase' }}>({currentUser.role})</span>
+                        </span>
+                    )}
+                    <button 
+                        onClick={handleLogout} 
+                        className={styles.btnSecondary} 
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: '#ef4444', color: '#ef4444', cursor: 'pointer' }}
+                    >
+                        <LogOut size={14} /> Déconnexion
+                    </button>
+                </div>
+            </div>
             <div className={styles.title} style={{ flexDirection: language === 'ar' ? 'row-reverse' : 'row' }}>
                 <Activity color="#00f0ff" size={32} />
                 <span style={{ flex: 1, textAlign: language === 'ar' ? 'right' : 'left' }}>{t('sarabQuestConsole')}</span>

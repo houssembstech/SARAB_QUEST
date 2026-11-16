@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Shield, ShieldAlert, Cpu, Users, Eye, Zap, Crosshair, ArrowRight, CheckCircle2, Download, Link as LinkIcon, Trash2, Edit3, X, Copy } from 'lucide-react';
+import { Shield, ShieldAlert, Cpu, Users, Eye, Zap, Crosshair, ArrowRight, CheckCircle2, Download, Link as LinkIcon, Trash2, Edit3, X, Copy, LogOut } from 'lucide-react';
 import styles from '../admin.module.css';
 import QRCode from 'qrcode';
 import { useLanguage } from '@/context/LanguageContext';
@@ -54,9 +54,57 @@ export default function PhygitalGameDetails() {
         if (data.success) setTeams(data.data);
     };
 
+    const handleImageFileChange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert('Veuillez sélectionner un fichier image valide (JPG, PNG, WEBP, etc.)');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new window.Image();
+            img.onload = () => {
+                // Resize for performance & mobile network safety (max 900px)
+                const maxDim = 900;
+                let width = img.width;
+                let height = img.height;
+                if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                        height = Math.round((height * maxDim) / width);
+                        width = maxDim;
+                    } else {
+                        width = Math.round((width * maxDim) / height);
+                        height = maxDim;
+                    }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                // Compressed web-ready JPEG base64 (~60-120KB)
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+                setPuzzleImage(compressedDataUrl);
+            };
+            img.onerror = () => {
+                alert('Impossible de charger cette image');
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleSaveStage = async (e) => {
         e.preventDefault();
         
+        if (validationType === 'puzzle' && !puzzleImage) {
+            alert('Veuillez importer une photo pour le puzzle.');
+            return;
+        }
+
         let finalCorrectAnswer = correctAnswer;
         if (validationType === 'choice') {
             finalCorrectAnswer = choicesArray.filter((_, i) => correctChoiceIndices.includes(i)).sort().join(',');
@@ -88,14 +136,22 @@ export default function PhygitalGameDetails() {
             // If editing QR/NFC and they didn't manually change the hidden correct answer, keep the old one by not overriding finalCorrectAnswer above
         }
         
-        const res = await fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(bodyPayload)
-        });
-        if ((await res.json()).success) {
-            fetchGame();
-            resetStageForm();
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bodyPayload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                fetchGame();
+                resetStageForm();
+            } else {
+                alert('Erreur: ' + (data.error || 'Erreur lors de l\'enregistrement de l\'étape'));
+            }
+        } catch (err) {
+            console.error('Error saving stage:', err);
+            alert('Erreur de communication avec le serveur');
         }
     };
 
@@ -220,6 +276,16 @@ export default function PhygitalGameDetails() {
         }
     };
 
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/auth/logout', { method: 'POST' });
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            router.push('/auth/login');
+        }
+    };
+
     const copyNfcUrl = (code) => {
         const url = `${window.location.origin}/games/sarab-quest?nfc_payload=${code}`;
         navigator.clipboard.writeText(url).then(() => {
@@ -233,11 +299,20 @@ export default function PhygitalGameDetails() {
 
     return (
         <div className={styles.adminContainer} style={{ direction: language === 'ar' ? 'rtl' : 'ltr' }}>
-            <button onClick={() => router.back()} className={styles.btnSecondary} style={{marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '5px', width: 'fit-content'}}>
-                {language !== 'ar' && <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} />}
-                {t('mainDashboardBtn')}
-                {language === 'ar' && <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} />}
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                <button onClick={() => router.push('/dashboard/games/sarab-quest')} className={styles.btnSecondary} style={{ display: 'flex', alignItems: 'center', gap: '5px', width: 'fit-content' }}>
+                    {language !== 'ar' && <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} />}
+                    {t('mainDashboardBtn') || 'Retour Missions'}
+                    {language === 'ar' && <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} />}
+                </button>
+                <button 
+                    onClick={handleLogout} 
+                    className={styles.btnSecondary} 
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: '#ef4444', color: '#ef4444', cursor: 'pointer' }}
+                >
+                    <LogOut size={14} /> Déconnexion
+                </button>
+            </div>
             
             <div className={styles.statusBar} style={{ flexDirection: language === 'ar' ? 'row-reverse' : 'row' }}>
                 <div style={{flex: 1, textAlign: language === 'ar' ? 'right' : 'left'}}>
@@ -407,21 +482,30 @@ export default function PhygitalGameDetails() {
                                     />
                                 </div>
                                 <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                                    <span style={{color: '#94a3b8', fontSize: '0.9rem', fontFamily: 'Orbitron'}}>{t('puzzleImageLabel')}</span>
+                                    <span style={{color: '#94a3b8', fontSize: '0.9rem', fontFamily: 'Orbitron'}}>{t('puzzleImageLabel') || 'Photo du Puzzle :'}</span>
                                     <input 
                                         type="file" 
                                         accept="image/*"
-                                        onChange={(e) => {
-                                            const file = e.target.files[0];
-                                            if (file) {
-                                                const reader = new FileReader();
-                                                reader.onloadend = () => setPuzzleImage(reader.result);
-                                                reader.readAsDataURL(file);
-                                            }
-                                        }}
+                                        onChange={handleImageFileChange}
                                         style={{color: '#fff'}}
                                     />
-                                    {puzzleImage && <img src={puzzleImage} alt="Puzzle Preview" style={{maxWidth: '100%', maxHeight: '200px', objectFit: 'contain', marginTop: '10px', borderRadius: '8px', border: '1px solid #a67c52'}} />}
+                                    {puzzleImage ? (
+                                        <div style={{ position: 'relative', width: 'fit-content', marginTop: '10px' }}>
+                                            <img src={puzzleImage} alt="Puzzle Preview" style={{maxWidth: '100%', maxHeight: '200px', objectFit: 'contain', borderRadius: '8px', border: '2px solid #00e5ff', display: 'block'}} />
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setPuzzleImage('')}
+                                                style={{ position: 'absolute', top: '5px', right: '5px', background: 'rgba(239,68,68,0.9)', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                title="Supprimer la photo"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div style={{ fontSize: '0.8rem', color: '#ffb74d' }}>
+                                            ⚠️ Aucune photo sélectionnée pour ce puzzle.
+                                        </div>
+                                    )}
                                 </div>
                                 
                                 <div style={{display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px'}}>

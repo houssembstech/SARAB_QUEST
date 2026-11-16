@@ -76,7 +76,19 @@ export async function PUT(request) {
     const updateData = {};
     if (name !== undefined && name.trim()) updateData.name = name.trim();
     if (isApproved !== undefined) updateData.isApproved = isApproved;
-    if (role) updateData.role = role;
+    if (role) {
+      if (!['admin', 'director', 'creator'].includes(role)) {
+        return NextResponse.json({ success: false, error: 'Rôle invalide' }, { status: 400 });
+      }
+      if (userId === session.userId && role !== 'admin') {
+        return NextResponse.json({ success: false, error: 'Vous ne pouvez pas modifier votre propre rôle administrateur' }, { status: 400 });
+      }
+      updateData.role = role;
+      // Promouvoir admin ou director approuve automatiquement si non spécifié
+      if ((role === 'admin' || role === 'director') && isApproved === undefined) {
+        updateData.isApproved = true;
+      }
+    }
     if (isBlocked !== undefined) updateData.isBlocked = isBlocked;
 
     if (password) {

@@ -32,6 +32,9 @@ export async function GET(request) {
             return NextResponse.json({ success: false, error: 'Jeu non trouvé' }, { status: 404 });
         }
 
+        // Filter out any deleted/null stage references
+        const validStages = (game.stages || []).filter(Boolean);
+
         // Determine if game has started — only 'active' means game is running
         const hasStarted = game.status === 'active';
 
@@ -45,13 +48,13 @@ export async function GET(request) {
                     mapTexture: game.mapTexture || 'map_general',
                     startTime: game.startTime,
                     gameStatus: game.status, // 'draft' | 'ready' | 'active'
-                    stagesSummary: game.stages.map((st, idx) => ({ id: st._id, title: st.title || `المهمة ${idx + 1}`, validationType: st.validationType })),
+                    stagesSummary: validStages.map((st, idx) => ({ id: st._id, title: st.title || `المهمة ${idx + 1}`, validationType: st.validationType })),
                     team: { name: team.teamName, score: team.score }
                 }
             });
         }
 
-        if (team.completed || team.currentStageIndex >= game.stages.length) {
+        if (team.completed || team.currentStageIndex >= validStages.length) {
             const leaderboard = await PhygitalTeam.find({ gameId: game._id })
                 .sort({ completed: -1, completedAt: 1, score: -1, currentStageIndex: -1 })
                 .select('teamName score currentStageIndex completed completedAt')
@@ -64,7 +67,7 @@ export async function GET(request) {
                     gameName: game.name,
                     gameDescription: game.description,
                     mapTexture: game.mapTexture || 'map_general',
-                    stagesSummary: game.stages.map((st, idx) => ({ id: st._id, title: st.title || `المهمة ${idx + 1}`, validationType: st.validationType })),
+                    stagesSummary: validStages.map((st, idx) => ({ id: st._id, title: st.title || `المهمة ${idx + 1}`, validationType: st.validationType })),
                     leaderboard: leaderboard,
                     team: { name: team.teamName, score: team.score, completedAt: team.completedAt }
                 }
@@ -72,7 +75,25 @@ export async function GET(request) {
         }
 
         // Present current stage
-        const currentStage = game.stages[team.currentStageIndex];
+        const currentStage = validStages[team.currentStageIndex];
+        if (!currentStage) {
+            const leaderboard = await PhygitalTeam.find({ gameId: game._id })
+                .sort({ completed: -1, completedAt: 1, score: -1, currentStageIndex: -1 })
+                .select('teamName score currentStageIndex completed completedAt')
+                .lean();
+            return NextResponse.json({
+                success: true,
+                data: {
+                    gameState: 'completed',
+                    gameName: game.name,
+                    gameDescription: game.description,
+                    mapTexture: game.mapTexture || 'map_general',
+                    stagesSummary: validStages.map((st, idx) => ({ id: st._id, title: st.title || `المهمة ${idx + 1}`, validationType: st.validationType })),
+                    leaderboard: leaderboard,
+                    team: { name: team.teamName, score: team.score, completedAt: team.completedAt }
+                }
+            });
+        }
         
         // Only return necessary info, NEVER the correctAnswer
         const stageInfo = {
@@ -84,11 +105,11 @@ export async function GET(request) {
             puzzleImage: currentStage.validationType === 'puzzle' ? currentStage.puzzleImage : undefined,
             puzzleGridSize: currentStage.validationType === 'puzzle' ? currentStage.puzzleGridSize : undefined,
             order: currentStage.order,
-            totalStages: game.stages.length,
+            totalStages: validStages.length,
         };
         
         // Expose a summary of all stages for the map (without correct answers)
-        const stagesSummary = game.stages.map((st, idx) => ({
+        const stagesSummary = validStages.map((st, idx) => ({
             id: st._id,
             title: st.title || `المهمة ${idx + 1}`,
             validationType: st.validationType,
