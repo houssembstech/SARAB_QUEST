@@ -97,7 +97,7 @@ export default function PhygitalGuestPlayerPage() {
             if (data.success) {
                 setGameState(data.data.gameState);
                 setGameStateData(data.data);
-            } else {
+            } else if (res.status === 404) {
                 localStorage.removeItem('sarabSession');
                 setTeamSession(null);
             }
