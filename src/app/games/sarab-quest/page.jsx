@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ScanLine, Map, Lightbulb, Trophy, LogOut, ArrowRight, AlertCircle, CheckCircle2, Navigation, Wifi, Fingerprint, Lock, MapPin, FileText, Puzzle, LayoutGrid, ShieldAlert } from 'lucide-react';
+import { ScanLine, Map, Lightbulb, Trophy, LogOut, ArrowRight, AlertCircle, CheckCircle2, Navigation, Wifi, Fingerprint, Lock, MapPin, FileText, Puzzle, LayoutGrid, ShieldAlert, FastForward, AlertTriangle } from 'lucide-react';
 import styles from './phygital.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 import SarabPuzzle from '@/components/SarabPuzzle';
@@ -47,6 +47,28 @@ export default function PhygitalGuestPlayerPage() {
     const [lobbyLoading, setLobbyLoading] = useState(false);
     const [registeredTeamData, setRegisteredTeamData] = useState(null); // codes after registration
     const [copiedCode, setCopiedCode] = useState('');
+
+    // Skip stage states
+    const [showSkipModal, setShowSkipModal] = useState(false);
+    const [isSkipping, setIsSkipping] = useState(false);
+    const [skipSecondsRemaining, setSkipSecondsRemaining] = useState(null);
+
+    useEffect(() => {
+        const firstSolveTime = gameStateData?.stage?.firstSolveTime;
+        if (!firstSolveTime) {
+            setSkipSecondsRemaining(null);
+            return;
+        }
+        const calcRemaining = () => {
+            const elapsed = Date.now() - new Date(firstSolveTime).getTime();
+            const fifteenMins = 15 * 60 * 1000;
+            const remaining = Math.max(0, Math.ceil((fifteenMins - elapsed) / 1000));
+            setSkipSecondsRemaining(remaining);
+        };
+        calcRemaining();
+        const interval = setInterval(calcRemaining, 1000);
+        return () => clearInterval(interval);
+    }, [gameStateData?.stage?.firstSolveTime, gameStateData?.stage?._id]);
 
     useEffect(() => {
         const stored = localStorage.getItem('sarabSession');
@@ -354,6 +376,48 @@ export default function PhygitalGuestPlayerPage() {
             setMessage({ text: data.error || data.message || t('errorAccess') || 'Code Invalide', type: 'error' });
         }
         setIsChecking(false);
+    };
+
+    const handleSkipStage = async () => {
+        if (isSkipping || !teamSession?.teamId || !gameStateData?.stage?._id) return;
+        setIsSkipping(true);
+        try {
+            const res = await fetch('/api/games/sarab-quest/player/skip', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    teamId: teamSession.teamId,
+                    stageId: gameStateData.stage._id
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setShowSkipModal(false);
+                setMessage({
+                    text: data.message || 'Étape passée ! Pénalité de -100 points appliquée.',
+                    type: 'error'
+                });
+                setGameStateData(prev => ({
+                    ...prev,
+                    team: {
+                        ...prev.team,
+                        score: Math.max(0, (prev.team?.score || 0) - 100)
+                    }
+                }));
+                setTimeout(() => {
+                    setMessage({ text: '', type: '' });
+                    fetchGameState(teamSession.teamId);
+                    setIsSkipping(false);
+                }, 1500);
+            } else {
+                alert(data.error || 'Impossible de passer cette étape');
+                setIsSkipping(false);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Erreur lors du passage de l\'étape');
+            setIsSkipping(false);
+        }
     };
 
     const handleSubmitAnswer = async (e, directAnswer = null) => {
@@ -1028,6 +1092,201 @@ export default function PhygitalGuestPlayerPage() {
                                     {message.text}
                                 </div>
                             )}
+
+                            {/* Section Passer l'étape (Skip Stage) */}
+                            <div style={{
+                                marginTop: '22px',
+                                padding: '14px 16px',
+                                background: 'rgba(255, 153, 0, 0.04)',
+                                border: '1px dashed rgba(255, 153, 0, 0.3)',
+                                borderRadius: '10px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '10px',
+                                textAlign: 'center',
+                                width: '100%',
+                                boxSizing: 'border-box'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ffb74d', fontFamily: "'Orbitron', sans-serif", fontSize: '0.82rem', letterSpacing: '0.5px' }}>
+                                    <AlertTriangle size={15} color="#ffb74d" />
+                                    <span>Bloqué sur cette étape ?</span>
+                                </div>
+
+                                {skipSecondsRemaining === null ? (
+                                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontFamily: "'Rajdhani', sans-serif" }}>
+                                        L'option de passage sera débloquée <strong>15 minutes</strong> après la première équipe qui termine cette étape.
+                                    </div>
+                                ) : skipSecondsRemaining > 0 ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                                        <div style={{ fontSize: '0.82rem', color: '#cbd5e1', fontFamily: "'Rajdhani', sans-serif" }}>
+                                            Une équipe a déjà résolu cette étape. Passage débloqué dans :
+                                        </div>
+                                        <div style={{
+                                            fontFamily: "'Orbitron', sans-serif",
+                                            color: '#ff9900',
+                                            fontSize: '1.25rem',
+                                            fontWeight: 700,
+                                            letterSpacing: '1px',
+                                            background: 'rgba(0,0,0,0.4)',
+                                            padding: '4px 14px',
+                                            borderRadius: '6px',
+                                            border: '1px solid rgba(255, 153, 0, 0.35)',
+                                            boxShadow: '0 0 10px rgba(255, 153, 0, 0.2)'
+                                        }}>
+                                            ⏳ {Math.floor(skipSecondsRemaining / 60).toString().padStart(2, '0')}:{(skipSecondsRemaining % 60).toString().padStart(2, '0')}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div style={{ width: '100%' }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowSkipModal(true)}
+                                            disabled={isSkipping}
+                                            style={{
+                                                width: '100%',
+                                                padding: '12px 18px',
+                                                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(249, 115, 22, 0.25) 100%)',
+                                                border: '1px solid #ef4444',
+                                                borderRadius: '8px',
+                                                color: '#ff6b6b',
+                                                fontFamily: "'Orbitron', sans-serif",
+                                                fontSize: '0.88rem',
+                                                fontWeight: 700,
+                                                letterSpacing: '0.5px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '8px',
+                                                boxShadow: '0 0 15px rgba(239, 68, 68, 0.3)',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            <FastForward size={16} /> Passer cette étape (-100 pts)
+                                        </button>
+                                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '6px' }}>
+                                            ⚠️ Pénalité de 100 points • 0 pt reçu pour l'étape
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Modal de confirmation pour passer l'étape */}
+                    {showSkipModal && (
+                        <div style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(0, 0, 0, 0.85)',
+                            backdropFilter: 'blur(8px)',
+                            zIndex: 99999,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '20px'
+                        }}>
+                            <div style={{
+                                background: 'linear-gradient(135deg, #1f1515 0%, #110d0d 100%)',
+                                border: '2px solid #ef4444',
+                                borderRadius: '12px',
+                                padding: '26px',
+                                maxWidth: '420px',
+                                width: '100%',
+                                boxShadow: '0 0 40px rgba(239, 68, 68, 0.4)',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{
+                                    width: '56px',
+                                    height: '56px',
+                                    background: 'rgba(239, 68, 68, 0.15)',
+                                    border: '1px solid #ef4444',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    margin: '0 auto 16px',
+                                    color: '#ef4444'
+                                }}>
+                                    <AlertTriangle size={28} />
+                                </div>
+
+                                <h3 style={{
+                                    fontFamily: "'Orbitron', sans-serif",
+                                    color: '#ff6b6b',
+                                    fontSize: '1.25rem',
+                                    margin: '0 0 14px',
+                                    letterSpacing: '1px'
+                                }}>
+                                    Passer cette étape ?
+                                </h3>
+
+                                <div style={{
+                                    background: 'rgba(0, 0, 0, 0.4)',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                                    borderRadius: '8px',
+                                    padding: '14px',
+                                    marginBottom: '20px',
+                                    textAlign: 'left',
+                                    fontSize: '0.92rem',
+                                    color: '#e2e8f0',
+                                    lineHeight: 1.6
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#ff6b6b', fontWeight: 600 }}>
+                                        ❌ <span>Score de cette étape : <strong>0 point</strong></span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#f87171', fontWeight: 600 }}>
+                                        ⚠️ <span>Pénalité sur votre score : <strong>-100 points</strong></span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#94a3b8' }}>
+                                        ➡️ <span>Vous passerez directement à l'étape suivante.</span>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '12px' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSkipModal(false)}
+                                        disabled={isSkipping}
+                                        style={{
+                                            flex: 1,
+                                            padding: '12px',
+                                            background: 'transparent',
+                                            border: '1px solid #64748b',
+                                            color: '#94a3b8',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            fontFamily: "'Rajdhani', sans-serif",
+                                            fontWeight: 600,
+                                            fontSize: '1rem'
+                                        }}
+                                    >
+                                        Annuler
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSkipStage}
+                                        disabled={isSkipping}
+                                        style={{
+                                            flex: 1,
+                                            padding: '12px',
+                                            background: '#ef4444',
+                                            border: '1px solid #ef4444',
+                                            color: '#fff',
+                                            borderRadius: '6px',
+                                            cursor: isSkipping ? 'not-allowed' : 'pointer',
+                                            opacity: isSkipping ? 0.6 : 1,
+                                            fontFamily: "'Orbitron', sans-serif",
+                                            fontWeight: 700,
+                                            fontSize: '0.88rem',
+                                            boxShadow: '0 0 15px rgba(239, 68, 68, 0.4)'
+                                        }}
+                                    >
+                                        {isSkipping ? 'Passage...' : 'Confirmer (-100 pts)'}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     )}
 

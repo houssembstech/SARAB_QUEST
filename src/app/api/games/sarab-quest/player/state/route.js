@@ -96,6 +96,12 @@ export async function GET(request) {
         }
         
         // Only return necessary info, NEVER the correctAnswer
+        const nowMs = Date.now();
+        const firstSolveMs = currentStage.firstSolveTime ? new Date(currentStage.firstSolveTime).getTime() : null;
+        const fifteenMinutesMs = 15 * 60 * 1000;
+        const canSkip = Boolean(firstSolveMs && (nowMs - firstSolveMs >= fifteenMinutesMs));
+        const skipAvailableInSeconds = firstSolveMs ? Math.max(0, Math.ceil((fifteenMinutesMs - (nowMs - firstSolveMs)) / 1000)) : null;
+
         const stageInfo = {
             _id: currentStage._id,
             title: currentStage.title,
@@ -104,6 +110,9 @@ export async function GET(request) {
             choices: currentStage.validationType === 'choice' ? currentStage.choices : undefined,
             puzzleImage: currentStage.validationType === 'puzzle' ? currentStage.puzzleImage : undefined,
             puzzleGridSize: currentStage.validationType === 'puzzle' ? currentStage.puzzleGridSize : undefined,
+            firstSolveTime: currentStage.firstSolveTime ? currentStage.firstSolveTime.toISOString() : null,
+            canSkip,
+            skipAvailableInSeconds,
             order: currentStage.order,
             totalStages: validStages.length,
         };
