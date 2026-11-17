@@ -336,7 +336,7 @@ export default function PhygitalGameDetails() {
                 </div>
             </div>
 
-            <div className={styles.grid} style={{gridTemplateColumns: 'minmax(300px, 1fr) minmax(300px, 1fr)', gap: '30px', direction: language === 'ar' ? 'rtl' : 'ltr'}}>
+            <div className={styles.dashboardGrid} style={{ direction: language === 'ar' ? 'rtl' : 'ltr' }}>
                 
                 {/* Clues / Stages */}
                 <div className={styles.card}>
@@ -570,10 +570,26 @@ export default function PhygitalGameDetails() {
                             if(stage.validationType === 'taquin') typeLabel = t('taquinBtn');
                             
                             return (
-                                <div key={idx} style={{background: 'rgba(255,255,255,0.03)', padding: '15px', borderRadius: '6px', borderRight: '3px solid #d49a6a', borderLeft: 'none', position: 'relative'}}>
-                                    <div style={{position: 'absolute', top: '10px', right: language === 'ar' ? 'auto' : '10px', left: language === 'ar' ? '10px' : 'auto', display: 'flex', gap: '5px'}}>
-                                        <button type="button" onClick={() => handleEditStageClick(stage)} style={{background: 'transparent', border: 'none', color: '#ff9900', cursor: 'pointer', padding: '5px'}}><Edit3 size={16} /></button>
-                                        <button type="button" onClick={() => handleDeleteStage(stage._id)} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '5px'}}><Trash2 size={16} /></button>
+                                <div key={idx} style={{background: 'rgba(255,255,255,0.03)', padding: '15px', paddingRight: language === 'ar' ? '15px' : '90px', paddingLeft: language === 'ar' ? '90px' : '15px', borderRadius: '6px', borderRight: '3px solid #d49a6a', borderLeft: 'none', position: 'relative'}}>
+                                    <div style={{position: 'absolute', top: '10px', right: language === 'ar' ? 'auto' : '10px', left: language === 'ar' ? '10px' : 'auto', display: 'flex', gap: '6px', zIndex: 2}}>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => handleEditStageClick(stage)} 
+                                            className={styles.stageActionBtn}
+                                            style={{border: '1px solid rgba(255, 153, 0, 0.4)', color: '#ff9900', background: 'rgba(255, 153, 0, 0.1)'}}
+                                            title="Modifier l'étape"
+                                        >
+                                            <Edit3 size={16} />
+                                        </button>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => handleDeleteStage(stage._id)} 
+                                            className={styles.stageActionBtn}
+                                            style={{border: '1px solid rgba(239, 68, 68, 0.4)', color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)'}}
+                                            title="Supprimer l'étape"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
                                     </div>
                                     <div style={{color: '#d49a6a', fontSize: '0.8rem', fontFamily: 'Rajdhani', display: 'flex', justifyContent: 'flex-start', gap: '10px', marginBottom: '10px'}}>
                                         <span>{t('clueNumberPrefix')} {idx + 1} | {stage.basePoints} {t('pointsSuffix')}</span>
@@ -620,7 +636,7 @@ export default function PhygitalGameDetails() {
                         <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}><Users size={18} /> {t('competingTeams')} ({teams.length})</div>
                     </div>
                     
-                    <form onSubmit={handleAddTeam} style={{display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap'}}>
+                    <form onSubmit={handleAddTeam} className={styles.addTeamForm}>
                         <input className={styles.input} style={{marginBottom: 0, textAlign: language === 'ar' ? 'right' : 'left', flex: 2}} placeholder={t('newTeamPlaceholder')} required value={teamName} onChange={e=>setTeamName(e.target.value)} />
                         <div style={{display: 'flex', alignItems: 'center', gap: '5px', background: 'rgba(0,0,0,0.3)', padding: '5px 10px', borderRadius: '4px', border: '1px solid #1f2937'}}>
                             <Users size={16} color="#94a3b8" />
@@ -629,77 +645,167 @@ export default function PhygitalGameDetails() {
                         <button className={styles.btnPrimary} style={{flex: 1}}>{t('addTeamBtn')}</button>
                     </form>
 
-                    <table className={styles.table} style={{textAlign: language === 'ar' ? 'right' : 'left'}}>
-                        <thead>
-                            <tr>
-                                <th style={{textAlign: language === 'ar' ? 'right' : 'left'}}>{t('teamCol')}</th>
-                                <th style={{textAlign: language === 'ar' ? 'right' : 'left'}}>{t('accessCodeCol')}</th>
-                                <th style={{textAlign: language === 'ar' ? 'right' : 'left'}}>{t('stageCol')}</th>
-                                <th style={{textAlign: language === 'ar' ? 'right' : 'left'}}>{t('pointsCol')}</th>
-                                <th style={{textAlign: 'center'}}>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {teams.map((team, idx) => (
-                                <tr key={idx} style={{background: idx === 0 && team.score > 0 ? 'rgba(255, 153, 0, 0.1)' : 'transparent'}}>
-                                    <td style={{fontWeight: 'bold', color: idx === 0 && team.score > 0 ? '#ff9900' : '#fff'}}>
+                    {teams.length === 0 && (
+                        <div style={{ textAlign: 'center', color: '#94a3b8', padding: '25px 15px', fontSize: '0.9rem', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+                            {t('noTeamsRegistered') || 'Aucune équipe inscrite pour le moment.'}
+                        </div>
+                    )}
+
+                    {/* Desktop Table View (> 768px) */}
+                    <div className={styles.tableWrapper}>
+                        <table className={`${styles.table} ${styles.desktopTable}`} style={{textAlign: language === 'ar' ? 'right' : 'left'}}>
+                            <thead>
+                                <tr>
+                                    <th style={{textAlign: language === 'ar' ? 'right' : 'left'}}>{t('teamCol')}</th>
+                                    <th style={{textAlign: language === 'ar' ? 'right' : 'left'}}>{t('accessCodeCol')}</th>
+                                    <th style={{textAlign: language === 'ar' ? 'right' : 'left'}}>{t('stageCol')}</th>
+                                    <th style={{textAlign: language === 'ar' ? 'right' : 'left'}}>{t('pointsCol')}</th>
+                                    <th style={{textAlign: 'center', width: '80px', minWidth: '70px'}}>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {teams.map((team, idx) => (
+                                    <tr key={idx} style={{background: idx === 0 && team.score > 0 ? 'rgba(255, 153, 0, 0.1)' : 'transparent'}}>
+                                        <td style={{fontWeight: 'bold', color: idx === 0 && team.score > 0 ? '#ff9900' : '#fff'}}>
+                                            {idx === 0 && team.score > 0 && '👑 '}
+                                            {team.teamName}
+                                        </td>
+                                        <td style={{verticalAlign: 'top'}}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                {(team.accessCodes || (team.accessCode ? [team.accessCode] : [])).map((code, codeIdx) => {
+                                                    const threat = team.activeThreats?.find(t => t.targetCode === code);
+                                                    const isDanger = threat?.isDanger || false;
+                                                    const votesCount = threat?.votes?.length || 0;
+                                                    const required = game?.eliminationVotesReq || 3;
+                                                    
+                                                    return (
+                                                        <div key={codeIdx} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: isDanger ? 'rgba(255,0,0,0.1)' : 'transparent', padding: '4px', borderRadius: '4px' }}>
+                                                            <span className={styles.codeBox} style={{fontSize: '0.8rem', padding: '2px 6px', border: isDanger ? '1px solid #ff0000' : undefined}}>{code}</span>
+                                                            <button 
+                                                                type="button"
+                                                                title="Copier"
+                                                                onClick={() => {
+                                                                    navigator.clipboard.writeText(code).then(() => {
+                                                                        alert((t('nfcCopySuccessTitle') || 'Code copié avec succès !') + '\n' + code);
+                                                                    });
+                                                                }}
+                                                                style={{ background: 'transparent', border: 'none', color: '#00f0ff', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                                                            >
+                                                                <Copy size={14} />
+                                                            </button>
+                                                            {game?.isEliminationEnabled && (
+                                                                <div style={{fontSize: '0.75rem', flex: 1, display: 'flex', alignItems: 'center', gap: '5px', ml: '5px'}}>
+                                                                    {isDanger ? (
+                                                                        <span style={{color: '#ff4444', fontWeight: 'bold'}}>💀 Éliminé</span>
+                                                                    ) : votesCount > 0 ? (
+                                                                        <span style={{color: '#ff9900'}}>⚠️ {votesCount}/{required} votes</span>
+                                                                    ) : (
+                                                                        <span style={{color: '#00e599'}}>✅ Sauf</span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </td>
+                                        <td style={{color: '#a67c52', direction: 'ltr', textAlign: language === 'ar' ? 'right' : 'left'}}>{team.currentStageIndex} / {game.stages?.length}</td>
+                                        <td style={{color: '#00f0ff', fontFamily: 'Orbitron', fontWeight: 'bold'}}>{team.score}</td>
+                                        <td style={{textAlign: 'center'}}>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => handleDeleteTeam(team._id)} 
+                                                className={styles.actionBtnDelete}
+                                                title="Supprimer l'équipe"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Mobile Card View (<= 768px) */}
+                    <div className={styles.mobileTeamList}>
+                        {teams.map((team, idx) => (
+                            <div 
+                                key={idx} 
+                                className={styles.mobileTeamCard}
+                                style={{
+                                    border: idx === 0 && team.score > 0 ? '1px solid #ff9900' : '1px solid rgba(166, 124, 82, 0.3)',
+                                    background: idx === 0 && team.score > 0 ? 'rgba(255, 153, 0, 0.06)' : 'rgba(255, 255, 255, 0.02)'
+                                }}
+                            >
+                                <div className={styles.mobileTeamHeader} style={{ flexDirection: language === 'ar' ? 'row-reverse' : 'row' }}>
+                                    <div className={styles.mobileTeamName} style={{ color: idx === 0 && team.score > 0 ? '#ff9900' : '#fff' }}>
                                         {idx === 0 && team.score > 0 && '👑 '}
                                         {team.teamName}
-                                    </td>
-                                    <td style={{verticalAlign: 'top'}}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            {(team.accessCodes || (team.accessCode ? [team.accessCode] : [])).map((code, codeIdx) => {
-                                                const threat = team.activeThreats?.find(t => t.targetCode === code);
-                                                const isDanger = threat?.isDanger || false;
-                                                const votesCount = threat?.votes?.length || 0;
-                                                const required = game?.eliminationVotesReq || 3;
-                                                
-                                                return (
-                                                    <div key={codeIdx} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: isDanger ? 'rgba(255,0,0,0.1)' : 'transparent', padding: '4px', borderRadius: '4px' }}>
-                                                        <span className={styles.codeBox} style={{fontSize: '0.8rem', padding: '2px 6px', border: isDanger ? '1px solid #ff0000' : undefined}}>{code}</span>
-                                                        <button 
-                                                            type="button"
-                                                            title="Copier"
-                                                            onClick={() => {
-                                                                navigator.clipboard.writeText(code).then(() => {
-                                                                    alert((t('nfcCopySuccessTitle') || 'Code copié avec succès !') + '\n' + code);
-                                                                });
-                                                            }}
-                                                            style={{ background: 'transparent', border: 'none', color: '#00f0ff', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
-                                                        >
-                                                            <Copy size={14} />
-                                                        </button>
-                                                        {game?.isEliminationEnabled && (
-                                                            <div style={{fontSize: '0.75rem', flex: 1, display: 'flex', alignItems: 'center', gap: '5px', ml: '5px'}}>
-                                                                {isDanger ? (
-                                                                    <span style={{color: '#ff4444', fontWeight: 'bold'}}>💀 Éliminé</span>
-                                                                ) : votesCount > 0 ? (
-                                                                    <span style={{color: '#ff9900'}}>⚠️ {votesCount}/{required} votes</span>
-                                                                ) : (
-                                                                    <span style={{color: '#00e599'}}>✅ Sauf</span>
-                                                                )}
-                                                            </div>
+                                    </div>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => handleDeleteTeam(team._id)} 
+                                        className={styles.actionBtnDelete}
+                                        title="Supprimer l'équipe"
+                                        aria-label="Supprimer l'équipe"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+
+                                <div className={styles.mobileTeamStats} style={{ flexDirection: language === 'ar' ? 'row-reverse' : 'row' }}>
+                                    <span className={styles.mobileStatBadge}>
+                                        <span style={{ color: '#94a3b8' }}>{t('stageCol')}:</span> 
+                                        <strong style={{ color: '#00f0ff', direction: 'ltr' }}>{team.currentStageIndex} / {game.stages?.length}</strong>
+                                    </span>
+                                    <span className={styles.mobileStatBadge}>
+                                        <span style={{ color: '#94a3b8' }}>{t('pointsCol')}:</span> 
+                                        <strong style={{ color: '#ffb74d', fontFamily: 'Orbitron' }}>{team.score} pts</strong>
+                                    </span>
+                                </div>
+
+                                <div className={styles.mobileCodesContainer}>
+                                    <div style={{ fontSize: '0.75rem', color: '#a67c52', textAlign: language === 'ar' ? 'right' : 'left' }}>{t('accessCodeCol')} :</div>
+                                    {(team.accessCodes || (team.accessCode ? [team.accessCode] : [])).map((code, codeIdx) => {
+                                        const threat = team.activeThreats?.find(t => t.targetCode === code);
+                                        const isDanger = threat?.isDanger || false;
+                                        const votesCount = threat?.votes?.length || 0;
+                                        const required = game?.eliminationVotesReq || 3;
+                                        
+                                        return (
+                                            <div key={codeIdx} className={styles.mobileCodeRow} style={{ background: isDanger ? 'rgba(255,0,0,0.12)' : 'rgba(0,0,0,0.3)', flexDirection: language === 'ar' ? 'row-reverse' : 'row' }}>
+                                                <span className={styles.codeBox} style={{ fontSize: '0.85rem', padding: '3px 8px', border: isDanger ? '1px solid #ff0000' : undefined }}>{code}</span>
+                                                <button 
+                                                    type="button"
+                                                    title="Copier"
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(code).then(() => {
+                                                            alert((t('nfcCopySuccessTitle') || 'Code copié avec succès !') + '\n' + code);
+                                                        });
+                                                    }}
+                                                    className={styles.copyCodeBtn}
+                                                >
+                                                    <Copy size={14} />
+                                                </button>
+                                                {game?.isEliminationEnabled && (
+                                                    <div style={{ fontSize: '0.75rem', margin: language === 'ar' ? '0 auto 0 0' : '0 0 0 auto', display: 'flex', alignItems: 'center' }}>
+                                                        {isDanger ? (
+                                                            <span style={{ color: '#ff4444', fontWeight: 'bold' }}>💀 Éliminé</span>
+                                                        ) : votesCount > 0 ? (
+                                                            <span style={{ color: '#ff9900' }}>⚠️ {votesCount}/{required}</span>
+                                                        ) : (
+                                                            <span style={{ color: '#00e599' }}>✅ Sauf</span>
                                                         )}
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </td>
-                                    <td style={{color: '#a67c52', direction: 'ltr', textAlign: language === 'ar' ? 'right' : 'left'}}>{team.currentStageIndex} / {game.stages?.length}</td>
-                                    <td style={{color: '#00f0ff', fontFamily: 'Orbitron', fontWeight: 'bold'}}>{team.score}</td>
-                                    <td style={{textAlign: 'center'}}>
-                                        <button 
-                                            type="button" 
-                                            onClick={() => handleDeleteTeam(team._id)} 
-                                            style={{background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', cursor: 'pointer', padding: '6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>

@@ -179,11 +179,27 @@ export default function CreatorDashboard() {
                 <div className={styles.grid}>
                     {games.map(game => (
                         <div key={game._id} className={styles.gameItem} style={{ position: 'relative' }}>
-                            <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                                <button type="button" onClick={() => handleEditClick(game)} style={{ background: 'transparent', border: 'none', color: '#ff9900', cursor: 'pointer', padding: '5px' }}><Edit3 size={16} /></button>
-                                <button type="button" onClick={() => handleDeleteClick(game._id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '5px' }}><Trash2 size={16} /></button>
+                            <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
+                                <button 
+                                    type="button" 
+                                    onClick={() => handleEditClick(game)} 
+                                    className={styles.stageActionBtn}
+                                    style={{ border: '1px solid rgba(255, 153, 0, 0.4)', color: '#ff9900', background: 'rgba(255, 153, 0, 0.1)' }}
+                                    title="Modifier la mission"
+                                >
+                                    <Edit3 size={16} />
+                                </button>
+                                <button 
+                                    type="button" 
+                                    onClick={() => handleDeleteClick(game._id)} 
+                                    className={styles.stageActionBtn}
+                                    style={{ border: '1px solid rgba(239, 68, 68, 0.4)', color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)' }}
+                                    title="Supprimer la mission"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
                             </div>
-                            <h2 style={{ fontSize: '1.4rem', fontFamily: 'Rajdhani', color: '#fff', marginBottom: '5px', paddingRight: '50px' }}>{game.name}</h2>
+                            <h2 style={{ fontSize: '1.4rem', fontFamily: 'Rajdhani', color: '#fff', marginBottom: '5px', paddingRight: '90px' }}>{game.name}</h2>
                             {game.description && (
                                 <p style={{ color: '#a0aec0', fontSize: '0.9rem', fontFamily: 'Rajdhani', marginBottom: '10px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                     {game.description}
