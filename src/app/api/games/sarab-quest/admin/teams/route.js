@@ -18,7 +18,29 @@ export async function GET(request) {
             query.gameId = gameId;
         }
 
-        const teams = await PhygitalTeam.find(query).sort({ score: -1, completedAt: 1 });
+        let teams = await PhygitalTeam.find(query).lean();
+
+        teams.sort((a, b) => {
+            // 1. Équipes ayant terminé en premier
+            if (Boolean(a.completed) !== Boolean(b.completed)) {
+                return a.completed ? -1 : 1;
+            }
+            // 2. Score le plus élevé en premier (CRITÈRE MAJEUR)
+            if ((b.score || 0) !== (a.score || 0)) {
+                return (b.score || 0) - (a.score || 0);
+            }
+            // 3. Départage au temps : pour les équipes ayant terminé avec le même score, la plus rapide gagne
+            if (a.completed && b.completed && a.completedAt && b.completedAt) {
+                const timeDiff = new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime();
+                if (timeDiff !== 0) return timeDiff;
+            }
+            // 4. Progression : étape la plus avancée
+            if ((b.currentStageIndex || 0) !== (a.currentStageIndex || 0)) {
+                return (b.currentStageIndex || 0) - (a.currentStageIndex || 0);
+            }
+            return 0;
+        });
+
         return NextResponse.json({ success: true, count: teams.length, data: teams });
     } catch (error) {
         console.error('Error fetching teams:', error);

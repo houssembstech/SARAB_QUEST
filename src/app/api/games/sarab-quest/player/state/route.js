@@ -6,6 +6,33 @@ import PhygitalGame from '@/models/PhygitalGame';
 
 export const dynamic = 'force-dynamic';
 
+async function getSortedLeaderboard(gameId) {
+    const teams = await PhygitalTeam.find({ gameId })
+        .select('teamName score currentStageIndex completed completedAt')
+        .lean();
+
+    return teams.sort((a, b) => {
+        // 1. Équipes ayant terminé en premier
+        if (Boolean(a.completed) !== Boolean(b.completed)) {
+            return a.completed ? -1 : 1;
+        }
+        // 2. Score le plus élevé en premier (CRITÈRE MAJEUR)
+        if ((b.score || 0) !== (a.score || 0)) {
+            return (b.score || 0) - (a.score || 0);
+        }
+        // 3. Départage au temps : pour les équipes ayant terminé avec le même score, la plus rapide gagne
+        if (a.completed && b.completed && a.completedAt && b.completedAt) {
+            const timeDiff = new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime();
+            if (timeDiff !== 0) return timeDiff;
+        }
+        // 4. Progression : pour les équipes en cours avec le même score, l'étape la plus avancée
+        if ((b.currentStageIndex || 0) !== (a.currentStageIndex || 0)) {
+            return (b.currentStageIndex || 0) - (a.currentStageIndex || 0);
+        }
+        return 0;
+    });
+}
+
 export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
@@ -55,10 +82,7 @@ export async function GET(request) {
         }
 
         if (team.completed || team.currentStageIndex >= validStages.length) {
-            const leaderboard = await PhygitalTeam.find({ gameId: game._id })
-                .sort({ completed: -1, completedAt: 1, score: -1, currentStageIndex: -1 })
-                .select('teamName score currentStageIndex completed completedAt')
-                .lean();
+            const leaderboard = await getSortedLeaderboard(game._id);
                 
             return NextResponse.json({
                 success: true,
@@ -77,10 +101,7 @@ export async function GET(request) {
         // Present current stage
         const currentStage = validStages[team.currentStageIndex];
         if (!currentStage) {
-            const leaderboard = await PhygitalTeam.find({ gameId: game._id })
-                .sort({ completed: -1, completedAt: 1, score: -1, currentStageIndex: -1 })
-                .select('teamName score currentStageIndex completed completedAt')
-                .lean();
+            const leaderboard = await getSortedLeaderboard(game._id);
             return NextResponse.json({
                 success: true,
                 data: {
@@ -126,10 +147,7 @@ export async function GET(request) {
         }));
         
         // Fetch leaderboard Data
-        const leaderboard = await PhygitalTeam.find({ gameId: game._id })
-            .sort({ completed: -1, completedAt: 1, score: -1, currentStageIndex: -1 })
-            .select('teamName score currentStageIndex completed completedAt')
-            .lean();
+        const leaderboard = await getSortedLeaderboard(game._id);
 
         // -------------------------
         // PvP Elimination Logic
